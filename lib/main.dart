@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:anim_video_player/models/json_res.dart';
 import 'package:anim_video_player/player/anim_video_player.dart';
 import 'package:anim_video_player/settings/video_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(MyApp());
@@ -20,6 +24,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
+Future<JsonRes> fetchJson() async {
+  final res = await http
+      .get('https://gogo-api-cdn.herokuapp.com/details/death-note/ep/1/');
+
+  return JsonRes.fromJson(json.decode(res.body));
+}
+
 class MyHomePage extends StatelessWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
 
@@ -31,21 +42,24 @@ class MyHomePage extends StatelessWidget {
       appBar: AppBar(
         title: Text(title),
       ),
-      body: AnimVideoPlayer(
-        settings: VideoSettings(
-          qualities: [
-            VideoQuality(
-              '240P',
-              'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-            ),
-            VideoQuality(
-              '480P',
-              'http://www.sample-videos.com/video123/mp4/720/big_buck_bunny_720p_20mb.mp4',
-            ),
-          ],
-          defaultQuality: '480P',
-        ),
-      ),
+      body: FutureBuilder<JsonRes>(
+          future: fetchJson(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              print(snapshot.data.code);
+              return AnimVideoPlayer(
+                settings: VideoSettings(
+                  qualities: snapshot.data.response.items
+                      .map((e) => VideoQuality(
+                          e.quality, Uri.tryParse(e.url).toString()))
+                      .toList(growable: false),
+                ),
+              );
+            }
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          }),
     );
   }
 }
